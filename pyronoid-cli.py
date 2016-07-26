@@ -5,6 +5,7 @@ import thread
 import threading
 import time
 import Pyro4
+import select
 
 
 class Bat:
@@ -68,6 +69,7 @@ class BatMover:
         self.bat = bat
 
     def move(self, pos):
+        self.bat.move_right()
         print pos
 
 
@@ -106,7 +108,13 @@ class Scene:
                 if key == curses.KEY_RIGHT:  # of we got a space then break
                     self.bat.move_right()
 
-                self.daemon.events(self.daemon.sockets)
+                # self.daemon.events(self.daemon.sockets)
+                socks = self.daemon.sockets
+                ins, outs, exs = select.select(socks, [], [], 1)  # 'foreign' event loop
+                for s in socks:
+                    if s in ins:
+                        # self.daemon.handleRequest(s)
+                        self.daemon.events(self.daemon.sockets)
 
                 self.ball.move()
 
