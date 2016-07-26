@@ -5,16 +5,17 @@ import time
 
 
 class Bat:
-    def __init__(self, pos_y):
+    def __init__(self, pos_y, max_x):
         self.x = 0
         self.pos_y = pos_y
-        self.speed_x = 1
-        self.width = 5
+        self.speed_x = 2
+        self.width = 10
+        self.max_x = max_x - self.width - 1
 
     def move_right(self):
         self.x += self.speed_x
-        if self.x > 100:
-            self.x = 100
+        if self.x > self.max_x:
+            self.x = self.max_x
 
     def move_left(self):
         self.x -= self.speed_x
@@ -70,7 +71,7 @@ class Scene:
         rows, columns = self.stdscr.getmaxyx()
 
         self.ball = Ball(0, 0, rows - 2, columns - 2)
-        self.bat = Bat(rows - 1)
+        self.bat = Bat(rows - 1, columns - 2)
 
         curses.start_color()
         curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
@@ -79,25 +80,23 @@ class Scene:
         try:
             while True:
                 try:
-                    key = self.stdscr.getkey()
-                    print key
+                    key = self.stdscr.getch()
                 except Exception as e:  # in no delay mode getkey raise and exeption if no key is press
                     key = None
 
                 if key == curses.KEY_LEFT:  # of we got a space then break
-                    print 'left'
                     self.bat.move_left()
                 if key == curses.KEY_RIGHT:  # of we got a space then break
-                    print 'right'
                     self.bat.move_right()
 
                 self.ball.move()
+
+                self.stdscr.clear()
                 self.ball.draw(self.stdscr)
-
                 self.bat.draw(self.stdscr)
-
                 self.stdscr.refresh()
-                time.sleep(0.1)
+
+                time.sleep(0.01)
         except KeyboardInterrupt:
             pass
         finally:
