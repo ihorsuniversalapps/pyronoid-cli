@@ -1,7 +1,10 @@
 import curses
 import os
 import sys
+import thread
+import threading
 import time
+import Pyro4
 
 
 class Bat:
@@ -59,6 +62,15 @@ class Ball:
         stdscr.addstr(self.y, self.x, 'O', curses.color_pair(1))
 
 
+@Pyro4.expose
+class BatMover:
+    def __init__(self, bat):
+        self.bat = bat
+
+    def move(self, pos):
+        print pos
+
+
 class Scene:
     def __init__(self):
         self.stdscr = curses.initscr()
@@ -76,6 +88,11 @@ class Scene:
         curses.start_color()
         curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
 
+        self.daemon = Pyro4.Daemon()  # make a Pyro daemon
+        ns = Pyro4.locateNS()  # find the name server
+        uri = self.daemon.register(BatMover(bat=self.bat))  # register the greeting maker as a Pyro object
+        ns.register("local.pyronoid", uri)  # register the object with a name in the name server
+
     def loop(self):
         try:
             while True:
@@ -88,6 +105,8 @@ class Scene:
                     self.bat.move_left()
                 if key == curses.KEY_RIGHT:  # of we got a space then break
                     self.bat.move_right()
+
+                self.daemon.events(self.daemon.sockets)
 
                 self.ball.move()
 
