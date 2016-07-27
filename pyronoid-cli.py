@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import curses
 import os
 import sys
@@ -63,11 +65,11 @@ class Ball:
         stdscr.addstr(self.y, self.x, 'O', curses.color_pair(1))
 
 
-@Pyro4.expose
 class BatMover:
     def __init__(self, bat):
         self.bat = bat
 
+    @Pyro4.expose
     def move(self, pos):
         self.bat.move_right()
         print pos
@@ -93,24 +95,24 @@ class Scene:
         self.daemon = Pyro4.Daemon()  # make a Pyro daemon
         ns = Pyro4.locateNS()  # find the name server
         uri = self.daemon.register(BatMover(bat=self.bat))  # register the greeting maker as a Pyro object
-        ns.register("local.pyronoid", uri)  # register the object with a name in the name server
+        ns.register("PYRONAME:local.pyronoid", 'PYRO:batmover@192.168.10.104:9999')  # register the object with a name in the name server
 
     def loop(self):
         try:
             while True:
                 try:
                     key = self.stdscr.getch()
-                except Exception as e:  # in no delay mode getkey raise and exeption if no key is press
+                except Exception as e:
                     key = None
 
-                if key == curses.KEY_LEFT:  # of we got a space then break
+                if key == curses.KEY_LEFT:
                     self.bat.move_left()
-                if key == curses.KEY_RIGHT:  # of we got a space then break
+                if key == curses.KEY_RIGHT:
                     self.bat.move_right()
 
                 # self.daemon.events(self.daemon.sockets)
                 socks = self.daemon.sockets
-                ins, outs, exs = select.select(socks, [], [], 1)  # 'foreign' event loop
+                ins, outs, exs = select.select(socks, [], [], 1)
                 for s in socks:
                     if s in ins:
                         # self.daemon.handleRequest(s)
@@ -127,6 +129,7 @@ class Scene:
         except KeyboardInterrupt:
             pass
         finally:
+            self.daemon.close()
             curses.nocbreak()
             curses.echo()
             curses.endwin()
