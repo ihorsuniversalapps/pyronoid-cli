@@ -2,12 +2,11 @@
 
 import curses
 import os
-import sys
-import thread
-import threading
-import time
-import Pyro4
 import select
+import sys
+import time
+
+import Pyro4
 
 
 class Bat:
@@ -27,6 +26,11 @@ class Bat:
         self.x -= self.speed_x
         if self.x < 0:
             self.x = 0
+
+    def set_post(self, percent):
+        self.x = int(percent * self.max_x)
+        if self.x > self.max_x:  # todo: move check outside
+            self.x = self.max_x
 
     def draw(self, stdscr):
         stdscr.addstr(self.pos_y, self.x, 'T' * self.width, curses.color_pair(1))
@@ -71,8 +75,7 @@ class BatMover:
 
     @Pyro4.expose
     def move(self, pos):
-        self.bat.move_right()
-        print pos
+        self.bat.set_post(pos)
 
 
 class Scene:
@@ -92,10 +95,10 @@ class Scene:
         curses.start_color()
         curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
 
-        self.daemon = Pyro4.Daemon()  # make a Pyro daemon
+        self.daemon = Pyro4.Daemon(host="192.168.10.104")  # make a Pyro daemon
         ns = Pyro4.locateNS()  # find the name server
-        uri = self.daemon.register(BatMover(bat=self.bat))  # register the greeting maker as a Pyro object
-        ns.register("PYRONAME:local.pyronoid", 'PYRO:batmover@192.168.10.104:9999')  # register the object with a name in the name server
+        uri = self.daemon.register(BatMover(self.bat))  # register the greeting maker as a Pyro object
+        ns.register("PYRONAME:local.pyronoid", uri)  # register the object with a name in the name server
 
     def loop(self):
         try:
@@ -112,7 +115,7 @@ class Scene:
 
                 # self.daemon.events(self.daemon.sockets)
                 socks = self.daemon.sockets
-                ins, outs, exs = select.select(socks, [], [], 1)
+                ins, outs, exs = select.select(socks, [], [], 0.1)
                 for s in socks:
                     if s in ins:
                         # self.daemon.handleRequest(s)
