@@ -2,8 +2,8 @@
 
 import curses
 import os
-import select
 import sys
+import threading
 import time
 
 import Pyro4
@@ -100,6 +100,14 @@ class Scene:
         uri = self.daemon.register(BatMover(self.bat))  # register the greeting maker as a Pyro object
         ns.register("PYRONAME:local.pyronoid", uri)  # register the object with a name in the name server
 
+        worker = threading.Thread(target=self.pyro_loop)
+        worker.setDaemon(True)
+        worker.start()
+
+    def pyro_loop(self):
+        self.daemon.requestLoop()
+        print "Loop ends"
+
     def loop(self):
         try:
             while True:
@@ -113,13 +121,13 @@ class Scene:
                 if key == curses.KEY_RIGHT:
                     self.bat.move_right()
 
-                # self.daemon.events(self.daemon.sockets)
-                socks = self.daemon.sockets
-                ins, outs, exs = select.select(socks, [], [], 0.1)
-                for s in socks:
-                    if s in ins:
-                        # self.daemon.handleRequest(s)
-                        self.daemon.events(self.daemon.sockets)
+                # # self.daemon.events(self.daemon.sockets)
+                # socks = self.daemon.sockets
+                # ins, outs, exs = select.select(socks, [], [], 0.1)
+                # for s in socks:
+                #     if s in ins:
+                #         # self.daemon.handleRequest(s)
+                #         self.daemon.events(self.daemon.sockets)
 
                 self.ball.move()
 
