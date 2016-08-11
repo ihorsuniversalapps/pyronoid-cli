@@ -122,8 +122,9 @@ class Scene:
             self.finish()
 
     def finish(self):
-        self.daemon.close()
+        self.daemon.shutdown()
         self.restore_terminal_state()
+        print "Pyro demon is closed."
 
     @staticmethod
     def restore_terminal_state():
