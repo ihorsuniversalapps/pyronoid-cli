@@ -34,7 +34,7 @@ class Bat:
             self.x = self.max_x
 
     def draw(self, stdscr):
-        stdscr.addstr(self.pos_y, self.x, 'T' * self.width, curses.color_pair(1))
+        stdscr.addstr(self.pos_y, self.x, '@' * self.width, curses.color_pair(1))
 
 
 class Ball:
@@ -80,15 +80,16 @@ class BatMover:
 
 
 class Scene:
-    def __init__(self):
-
-        self.stdscr = curses.initscr()
+    def init_scene(self):
         curses.noecho()
         curses.curs_set(0)
         curses.cbreak()
         self.stdscr.nodelay(True)
         self.stdscr.keypad(1)
 
+    def __init__(self):
+        self.stdscr = curses.initscr()
+        self.init_scene()
         rows, columns = self.stdscr.getmaxyx()
 
         self.ball = Ball(0, 0, rows - 2, columns - 2)
@@ -98,13 +99,7 @@ class Scene:
         curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
 
         self.daemon = Pyro4.Daemon(host="192.168.10.104")  # todo: determine address or get from params
-        ns = Pyro4.locateNS()
-        uri = self.daemon.register(BatMover(self.bat))
-        ns.register("PYRONAME:local.pyronoid", uri)
-
-        worker = threading.Thread(target=self.pyro_loop)
-        worker.setDaemon(True)
-        worker.start()
+        self.run_pyro_demon()
 
     def pyro_loop(self):
         self.daemon.requestLoop()
@@ -135,6 +130,15 @@ class Scene:
         curses.nocbreak()
         curses.echo()
         curses.endwin()
+
+    def run_pyro_demon(self):
+        ns = Pyro4.locateNS()
+        uri = self.daemon.register(BatMover(self.bat))
+        ns.register("PYRONAME:local.pyronoid", uri)
+
+        worker = threading.Thread(target=self.pyro_loop)
+        worker.setDaemon(True)
+        worker.start()
 
 
 def main():
