@@ -1,5 +1,5 @@
 #!/usr/bin/python
-
+import argparse
 import curses
 import os
 import sys
@@ -9,113 +9,135 @@ import time
 import Pyro4
 from Pyro4.errors import NamingError
 
+GAME_LOOP_TIMEOUT = 0.06  # 60 fps
+BAT_WIDTH = 10
+BALL_INITIAL_SPEED = 1.0
+
 
 class Bat:
     def __init__(self, pos_y, max_x):
-        self.x = 0
+        self.pos_x = 0.0
         self.pos_y = pos_y
-        self.speed_x = 2
-        self.width = 10
-        self.max_x = max_x - self.width - 1
+        self.width = BAT_WIDTH
+        self.max_x = max_x - self.width - 1.0  # todo: check
 
-    def move_right(self):
-        self.x += self.speed_x
-        if self.x > self.max_x:
-            self.x = self.max_x
-
-    def move_left(self):
-        self.x -= self.speed_x
-        if self.x < 0:
-            self.x = 0
-
-    def set_post(self, percent):
-        self.x = int(percent * self.max_x)
-        if self.x > self.max_x:  # todo: move check outside
-            self.x = self.max_x
+    def set_position(self, percent):
+        self.pos_x = int(percent * self.max_x)
+        if self.pos_x > self.max_x:
+            self.pos_x = self.max_x
 
     def draw(self, stdscr):
-        stdscr.addstr(self.pos_y, self.x, '@' * self.width, curses.color_pair(1))
+        stdscr.addstr(int(self.pos_y), int(self.pos_x), '@' * self.width, curses.color_pair(1))
 
 
 class Ball:
-    def __init__(self, initial_y=0, initial_x=0, max_y=0, max_x=0):
-        self.y = initial_y
-        self.x = initial_x
-        self.speed_y = 1
-        self.speed_x = 1
+    def __init__(self, initial_y=0.0, initial_x=0.0, max_y=0.0, max_x=0.0):
+        self.pos_y = initial_y
+        self.pos_x = initial_x
+        self.speed_y = BALL_INITIAL_SPEED
+        self.speed_x = BALL_INITIAL_SPEED
         self.max_y = max_y
         self.max_x = max_x
 
     def move(self):
-        self.y += self.speed_y
-        self.x += self.speed_x
+        self.pos_y += self.speed_y
+        self.pos_x += self.speed_x
 
-        if self.y < 0:
+        # todo: y pos checking should be removed according to
+        if self.pos_y < 0.0:
             self.speed_y = -self.speed_y
-            self.y = 0
+            self.pos_y = 0.0
 
-        if self.y > self.max_y:
+        if self.pos_y > self.max_y:
             self.speed_y = -self.speed_y
-            self.y = self.max_y
+            self.pos_y = self.max_y
 
-        if self.x < 0:
+        if self.pos_x < 0.0:
             self.speed_x = -self.speed_x
-            self.x = 0
+            self.pos_x = 0.0
 
-        if self.x > self.max_x:
-            self.x = self.max_x
+        if self.pos_x > self.max_x:
+            self.pos_x = self.max_x
             self.speed_x = -self.speed_x
 
     def draw(self, stdscr):
-        stdscr.addstr(self.y, self.x, 'O', curses.color_pair(1))
+        stdscr.addstr(int(self.pos_y), int(self.pos_x), 'O', curses.color_pair(2))
 
 
-class BatMover:
+class GameController:
     def __init__(self, bat):
         self.bat = bat
 
     @Pyro4.expose
-    def move(self, pos):
-        self.bat.set_post(pos)
+    def move_bat(self, pos):
+        """
+        Moves bat.
+        :param pos: Percent position, e.g. 50.0% means half of terminal width.
+        :return: None
+        """
+        self.bat.set_position(pos)
+
+    @Pyro4.expose
+    def restart_game(self):
+        """
+        Restarts game if it was game over.
+        :return: None
+        """
+        pass
 
 
 class Scene:
-    def init_scene(self):
+    @staticmethod
+    def init_scene():
         curses.noecho()
         curses.curs_set(0)
         curses.cbreak()
-        self.stdscr.nodelay(True)
-        self.stdscr.keypad(1)
 
-    def __init__(self):
+    def __init__(self, host):
+        print "Running game on {}".format(host)
+        self.daemon = Pyro4.Daemon(host=host)
+
         self.stdscr = curses.initscr()
         self.init_scene()
         rows, columns = self.stdscr.getmaxyx()
 
-        self.ball = Ball(0, 0, rows - 2, columns - 2)
-        self.bat = Bat(rows - 1, columns - 2)
+        self.ball = Ball(0.0, 0.0, rows - 2.0, columns - 2.0)  # todo: check max width
+        self.bat = Bat(rows - 1.0, columns - 2.0)
 
         curses.start_color()
-        curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
+        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
+        curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
 
-        self.daemon = Pyro4.Daemon(host="192.168.10.104")  # todo: determine address or get from params
         self.run_pyro_demon()
 
     def pyro_loop(self):
         self.daemon.requestLoop()
         print "Pyro loop finished."
 
+    def check_collisions(self):
+        # todo: Collision to bat
+        # todo: Collision to bottom
+        pass
+
+    def draw_score(self):
+        # todo: draw score - amount of succeed reflections
+        # todo: draw max score
+        # todo: draw game time
+        pass
+
     def loop(self):
         try:
             while True:
                 self.ball.move()
+                self.check_collisions()
 
                 self.stdscr.clear()
                 self.ball.draw(self.stdscr)
                 self.bat.draw(self.stdscr)
+                self.draw_score()
                 self.stdscr.refresh()
 
-                time.sleep(0.01)
+                time.sleep(GAME_LOOP_TIMEOUT)
         except KeyboardInterrupt:
             pass
         finally:
@@ -134,7 +156,7 @@ class Scene:
 
     def run_pyro_demon(self):
         ns = Pyro4.locateNS()
-        uri = self.daemon.register(BatMover(self.bat))
+        uri = self.daemon.register(GameController(self.bat))
         ns.register("PYRONAME:local.pyronoid", uri)
 
         worker = threading.Thread(target=self.pyro_loop)
@@ -143,14 +165,17 @@ class Scene:
 
 
 def main():
-    if os.isatty(sys.stdin.fileno()):
-        print "PYRONOID v0.1"
-    else:
+    parser = argparse.ArgumentParser(description='Pyronoid v0.1- Arkanoid clone game')
+    parser.add_argument('host', metavar='H', type=str, nargs=1, help='Host name (external machine address)')
+
+    args = parser.parse_args()
+
+    if not os.isatty(sys.stdin.fileno()):
         print "You should run application from Terminal."
         exit()
 
     try:
-        scene = Scene()
+        scene = Scene(args.host[0])
         scene.loop()
     except NamingError as e:
         Scene.restore_terminal_state()
@@ -159,12 +184,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# todo: remove this shit
-# # self.daemon.events(self.daemon.sockets)
-# socks = self.daemon.sockets
-# ins, outs, exs = select.select(socks, [], [], 0.1)
-# for s in socks:
-#     if s in ins:
-#         # self.daemon.handleRequest(s)
-#         self.daemon.events(self.daemon.sockets)
