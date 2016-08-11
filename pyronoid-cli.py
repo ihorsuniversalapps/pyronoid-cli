@@ -103,7 +103,7 @@ class Scene:
 
     def pyro_loop(self):
         self.daemon.requestLoop()
-        print "Loop ends"
+        print "Pyro loop finished."
 
     def loop(self):
         try:
@@ -124,7 +124,7 @@ class Scene:
     def finish(self):
         self.daemon.shutdown()
         self.restore_terminal_state()
-        print "Pyro demon is closed."
+        print "Pyro daemon is closed."
 
     @staticmethod
     def restore_terminal_state():
