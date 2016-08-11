@@ -7,6 +7,7 @@ import threading
 import time
 
 import Pyro4
+from Pyro4.errors import NamingError
 
 
 class Bat:
@@ -80,6 +81,7 @@ class BatMover:
 
 class Scene:
     def __init__(self):
+
         self.stdscr = curses.initscr()
         curses.noecho()
         curses.curs_set(0)
@@ -95,10 +97,10 @@ class Scene:
         curses.start_color()
         curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
 
-        self.daemon = Pyro4.Daemon(host="192.168.10.104")  # make a Pyro daemon
-        ns = Pyro4.locateNS()  # find the name server
-        uri = self.daemon.register(BatMover(self.bat))  # register the greeting maker as a Pyro object
-        ns.register("PYRONAME:local.pyronoid", uri)  # register the object with a name in the name server
+        self.daemon = Pyro4.Daemon(host="192.168.10.104")  # todo: determine address or get from params
+        ns = Pyro4.locateNS()
+        uri = self.daemon.register(BatMover(self.bat))
+        ns.register("PYRONAME:local.pyronoid", uri)
 
         worker = threading.Thread(target=self.pyro_loop)
         worker.setDaemon(True)
@@ -111,24 +113,6 @@ class Scene:
     def loop(self):
         try:
             while True:
-                try:
-                    key = self.stdscr.getch()
-                except Exception as e:
-                    key = None
-
-                if key == curses.KEY_LEFT:
-                    self.bat.move_left()
-                if key == curses.KEY_RIGHT:
-                    self.bat.move_right()
-
-                # # self.daemon.events(self.daemon.sockets)
-                # socks = self.daemon.sockets
-                # ins, outs, exs = select.select(socks, [], [], 0.1)
-                # for s in socks:
-                #     if s in ins:
-                #         # self.daemon.handleRequest(s)
-                #         self.daemon.events(self.daemon.sockets)
-
                 self.ball.move()
 
                 self.stdscr.clear()
@@ -140,10 +124,17 @@ class Scene:
         except KeyboardInterrupt:
             pass
         finally:
-            self.daemon.close()
-            curses.nocbreak()
-            curses.echo()
-            curses.endwin()
+            self.finish()
+
+    def finish(self):
+        self.daemon.close()
+        self.restore_terminal_state()
+
+    @staticmethod
+    def restore_terminal_state():
+        curses.nocbreak()
+        curses.echo()
+        curses.endwin()
 
 
 def main():
@@ -153,9 +144,22 @@ def main():
         print "You should run application from Terminal."
         exit()
 
-    scene = Scene()
-    scene.loop()
+    try:
+        scene = Scene()
+        scene.loop()
+    except NamingError as e:
+        Scene.restore_terminal_state()
+        print "Name server error: " + e.message
 
 
 if __name__ == '__main__':
     main()
+
+# todo: remove this shit
+# # self.daemon.events(self.daemon.sockets)
+# socks = self.daemon.sockets
+# ins, outs, exs = select.select(socks, [], [], 0.1)
+# for s in socks:
+#     if s in ins:
+#         # self.daemon.handleRequest(s)
+#         self.daemon.events(self.daemon.sockets)
