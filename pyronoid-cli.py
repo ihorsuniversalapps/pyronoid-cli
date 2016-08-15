@@ -12,6 +12,8 @@ from Pyro4.errors import NamingError
 GAME_LOOP_TIMEOUT = 0.06  # 60 fps
 BAT_WIDTH = 10
 BALL_INITIAL_SPEED = 1.0
+MESSAGE_AWAITING_CONNECTION = "Awaiting connection from gamepad..."
+MESSAGE_GAME_OVER = "GAME OVER"
 
 
 class Bat:
@@ -43,14 +45,9 @@ class Ball:
         self.pos_y += self.speed_y
         self.pos_x += self.speed_x
 
-        # todo: y pos checking should be removed according to
         if self.pos_y < 0.0:
             self.speed_y = -self.speed_y
             self.pos_y = 0.0
-
-        if self.pos_y > self.max_y:
-            self.speed_y = -self.speed_y
-            self.pos_y = self.max_y
 
         if self.pos_x < 0.0:
             self.speed_x = -self.speed_x
@@ -63,10 +60,14 @@ class Ball:
     def draw(self, stdscr):
         stdscr.addstr(int(self.pos_y), int(self.pos_x), 'O', curses.color_pair(2))
 
+    def beat(self):
+        self.speed_y = -self.speed_y
+
 
 class GameController:
-    def __init__(self, bat):
+    def __init__(self, bat, f):
         self.bat = bat
+        self.f = f
 
     @Pyro4.expose
     def move_bat(self, pos):
@@ -83,30 +84,47 @@ class GameController:
         Restarts game if it was game over.
         :return: None
         """
-        pass
+        self.f()
 
 
 class Scene:
+    GAME_STATE_AWAITING_GAMEPAD = 0
+    GAME_STATE_RUNNING = 1
+    GAME_STATE_GAME_OVER = 2
+
     @staticmethod
     def init_scene():
         curses.noecho()
         curses.curs_set(0)
         curses.cbreak()
 
+    def restart_game(self):
+        self.ball.pos_y = 0.0
+        self.ball.pos_x = 0.0
+        self.bat.pos_x = 0.0
+        self.max_score = max(self.score, self.max_score)
+        self.score = 0
+        self.game_state = self.GAME_STATE_RUNNING
+
     def __init__(self, host):
+        self.game_state = self.GAME_STATE_AWAITING_GAMEPAD
+        self.score = 0
+        self.max_score = 0
+
         print "Running game on {}".format(host)
         self.daemon = Pyro4.Daemon(host=host)
 
         self.stdscr = curses.initscr()
         self.init_scene()
-        rows, columns = self.stdscr.getmaxyx()
+        self.rows, self.columns = self.stdscr.getmaxyx()
 
-        self.ball = Ball(0.0, 0.0, rows - 2.0, columns - 2.0)  # todo: check max width
-        self.bat = Bat(rows - 1.0, columns - 2.0)
+        self.ball = Ball(0.0, 0.0, self.rows - 1.0, self.columns - 2.0)  # todo: check max width
+        self.bat = Bat(self.rows - 1.0, self.columns - 2.0)
 
         curses.start_color()
         curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
         curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
+        curses.init_pair(3, curses.COLOR_RED, curses.COLOR_BLACK)
 
         self.run_pyro_demon()
 
@@ -115,25 +133,48 @@ class Scene:
         print "Pyro loop finished."
 
     def check_collisions(self):
-        # todo: Collision to bat
-        # todo: Collision to bottom
-        pass
+        ball_x = int(self.ball.pos_x)
+        ball_y = int(self.ball.pos_y)
+        bat_x = int(self.bat.pos_x)
+        bat_x_max = int(self.bat.pos_x + self.bat.width)
+        bat_y = int(self.bat.pos_y)
+
+        if ball_y == bat_y:
+            if bat_x <= ball_x <= bat_x_max:
+                self.ball.beat()
+                self.score += 1
+                return
+
+        if ball_y >= self.ball.max_y:
+            self.game_state = self.GAME_STATE_GAME_OVER
 
     def draw_score(self):
         # todo: draw score - amount of succeed reflections
         # todo: draw max score
         # todo: draw game time
-        pass
+        self.stdscr.addstr(1, 10, 'Score: {} Max Score: {}'.format(self.score, self.max_score), curses.color_pair(3))
+
+    def draw_message(self, message):
+        self.stdscr.addstr(int(self.rows / 2.0),
+                           int(self.columns / 2.0 - len(message) / 2.0),
+                           message,
+                           curses.color_pair(3))
 
     def loop(self):
         try:
             while True:
-                self.ball.move()
-                self.check_collisions()
+                if self.game_state == self.GAME_STATE_AWAITING_GAMEPAD:
+                    self.draw_message(MESSAGE_AWAITING_CONNECTION)
+                elif self.game_state == self.GAME_STATE_RUNNING:
+                    self.ball.move()
+                    self.check_collisions()
 
-                self.stdscr.clear()
-                self.ball.draw(self.stdscr)
-                self.bat.draw(self.stdscr)
+                    self.stdscr.clear()
+                    self.ball.draw(self.stdscr)
+                    self.bat.draw(self.stdscr)
+                else:
+                    self.draw_message(MESSAGE_GAME_OVER)
+
                 self.draw_score()
                 self.stdscr.refresh()
 
@@ -156,11 +197,11 @@ class Scene:
 
     def run_pyro_demon(self):
         ns = Pyro4.locateNS()
-        uri = self.daemon.register(GameController(self.bat))
+        uri = self.daemon.register(GameController(self.bat, self.restart_game))
         ns.register("PYRONAME:local.pyronoid", uri)
 
         worker = threading.Thread(target=self.pyro_loop)
-        worker.setDaemon(True)
+        worker.setDaemon(False)
         worker.start()
 
 
