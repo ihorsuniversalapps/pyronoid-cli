@@ -24,6 +24,8 @@ Why Pyro? Because Pyro a very simple to use and pretty fast. On a typical networ
 * tens of thousands batched or oneway remote calls per second
 * 10-100 Mb/sec data transfer
 
+But we talk more about Pyro during writing the game. Now is time for ncurses.
+
 ## What is ncurses
 
 ncurses (new curses) is a programming library providing an application programming interface (API) that allows the programmer to write text-based user interfaces in a terminal-independent manner. It is a toolkit for developing "GUI-like" application software that runs under a terminal emulator. It also optimizes screen changes, in order to reduce the latency experienced when using remote shells.
@@ -57,7 +59,7 @@ Now, stdscr variable will contains the object represents our terminal. For insta
 rows, columns = self.stdscr.getmaxyx()
 ```
 
-The max rows and colums amount will be helpful for us when we will calculate collisions for ball and bat.
+The max rows and columns amount will be helpful for us when we will calculate collisions for ball and bat.
 
 Also we need to setup a color scheme for our game. During displaying symbol or string on the screen we should use a color pairs - foreground and background colors. Each color pair has integer identifier, so we can make something like this::
 
@@ -78,7 +80,24 @@ And every time when we want to display some text we can call *addstr()* method:
 stdscr.addstr(int(self.pos_y), int(self.pos_x), 'O', curses.color_pair(COLOR_BALL))
 ```
 
-As you know, each game should have a loop. Loop - it's a infinite cycle that runs forever. Each loop the game should move ball, receive and process data from game controller, clean, draw ball, bat and interface on the screen.
+As you know, each game should have a loop. Loop - it's a infinite cycle that runs forever. Each loop the game should move ball, receive and process data from game controller, clean, draw ball, bat and interface on the screen. Please, don't forget to make right handling of KeyboardInterrupt, because after program has finished, we need to restore terminal state, clear resource etc:
+
+```python
+try:
+    while True:
+        # do some cool stuff - move ball, bat
+
+        draw_bat()
+        draw_ball()
+        draw_score()
+        stdscr.refresh()
+
+        time.sleep(GAME_LOOP_TIMEOUT)
+except KeyboardInterrupt:
+    pass
+finally:
+    finish() # Clear resources, stop thread etc.
+```
 
 ## Writing Game Server
 

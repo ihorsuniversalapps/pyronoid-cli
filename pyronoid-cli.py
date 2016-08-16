@@ -12,7 +12,7 @@ from Pyro4.errors import NamingError
 GAME_LOOP_TIMEOUT = 0.06  # 60 fps
 BAT_WIDTH = 10
 BALL_INITIAL_SPEED = 1.0
-MESSAGE_AWAITING_CONNECTION = "Awaiting connection from gamepad..."
+MESSAGE_AWAITING_CONNECTION = "Awaiting connection from game controller..."
 MESSAGE_GAME_OVER = "GAME OVER"
 
 
@@ -149,9 +149,6 @@ class Scene:
             self.game_state = self.GAME_STATE_GAME_OVER
 
     def draw_score(self):
-        # todo: draw score - amount of succeed reflections
-        # todo: draw max score
-        # todo: draw game time
         self.stdscr.addstr(1, 10, 'Score: {} Max Score: {}'.format(self.score, self.max_score), curses.color_pair(3))
 
     def draw_message(self, message):
