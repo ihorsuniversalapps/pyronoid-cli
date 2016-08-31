@@ -80,7 +80,7 @@ And every time when we want to display some text we can call *addstr()* method:
 stdscr.addstr(int(self.pos_y), int(self.pos_x), 'O', curses.color_pair(COLOR_BALL))
 ```
 
-As you know, each game should have a loop. Loop - it's a infinite cycle that runs forever. Each loop the game should move ball, receive and process data from game controller, clean, draw ball, bat and interface on the screen. Please, don't forget to make right handling of KeyboardInterrupt, because after program has finished, we need to restore terminal state, clear resource etc:
+As you know, each game should have a loop. Loop - it's an infinite cycle that runs forever. Each cycle the game should move ball, receive and process data from game controller, clean, draw ball, bat and interface on the screen. Please, don't forget to make right handling of KeyboardInterrupt, because after program has finished, we need to restore terminal state, clear resource etc:
 
 ```python
 try:
