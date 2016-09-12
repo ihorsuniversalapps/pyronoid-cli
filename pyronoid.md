@@ -2,15 +2,15 @@
 
 ## The goal
 
-Sometime we need to create some kind of fast communication between, for instance, IoT devices at home or control some server by your phone.
+Sometimes we need to create some kind of fast communication between, for instance, IoT devices at home or control some server by your phone.
 
 Everyone knows about client-server architecture in software developing. The client–server model is a distributed application structure that partitions tasks or workloads between the providers of a resource or service, called servers, and service requesters, called clients. Often clients and servers communicate over a computer network on separate hardware, but both client and server may reside in the same system. A server host runs one or more server programs which share their resources with clients. A client does not share any of its resources, but requests a server's content or service function. Clients therefore initiate communication sessions with servers which await incoming requests.
 
-In this article I want to tell you about one of existence ways for near real-time client-server communication in Python. The most popular example for real-time communication is a chat application. But I will try to explain subject by creating small game like Arkanoid. It's a game where you control bat at the bottom of the screen. During game the ball will flying and beating of walls. The aim of the game is beat the ball by the bat the maximum number of beats as possible.
+In this article I want to tell you about one of existence ways for near real-time client-server communication with Python. The most popular example of real-time communication is a chat application. But I will try to explain subject by creating small game like Arkanoid. It's a game where you control bat at the bottom of the screen. During game the ball will flying and beating of walls. The aim of the game is bet the ball by the bat the maximum number of beats as possible.
 
-Application will consist two parts - terminal application which will draw ball and bat in text mode using ncurses library. The second part will be the game controller - application for Android that allows gamer to make swipes by a finger on the screen to control bat on the game server.
+Application will consist two parts - terminal application which will draw ball and bat in text mode using ncurses library. THis application also will be our game server. The second part will be the game controller - application for Android that allows gamer to make swipes by a finger on the screen to control bat on the game server.
 
-For communicating between game server and game controller we will use Pyro.
+To make communication between game server and game controller we will use Pyro.
 
 ## What is Pyro
 
@@ -24,7 +24,7 @@ Why Pyro? Because Pyro a very simple to use and pretty fast. On a typical networ
 * tens of thousands batched or oneway remote calls per second
 * 10-100 Mb/sec data transfer
 
-But we talk more about Pyro during writing the game. Now is time for ncurses.
+OK, now, I think, it's enough to talk about Pyro. We will talk more about Pyro during writing the game. Now it is a time for ncurses.
 
 ## What is ncurses
 
@@ -32,7 +32,7 @@ ncurses (new curses) is a programming library providing an application programmi
 
 ## Lets begin or some boring theory
 
-Let's begin creating the greatest game ever step-by-step.
+We should begin creating the greatest game ever step-by-step.
 
 First of all we should start game developing with preparing terminal. For working with terminal we would use ncurses, as I mentioned before. Also we should check if the application runs from terminal. For check this we should execute:
 
